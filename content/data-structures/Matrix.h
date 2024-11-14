@@ -10,31 +10,60 @@
  *  vec = (A^N) * vec;
  * Status: tested
  */
-#pragma once
-
-template<class T, int N> struct Matrix {
-	typedef Matrix M;
-	array<array<T, N>, N> d{};
-	M operator*(const M& m) const {
-		M a;
-		rep(i,0,N) rep(j,0,N)
-			rep(k,0,N) a.d[i][j] += d[i][k]*m.d[k][j];
-		return a;
-	}
-	vector<T> operator*(const vector<T>& vec) const {
-		vector<T> ret(N);
-		rep(i,0,N) rep(j,0,N) ret[i] += d[i][j] * vec[j];
-		return ret;
-	}
-	M operator^(ll p) const {
-		assert(p >= 0);
-		M a, b(*this);
-		rep(i,0,N) a.d[i][i] = 1;
-		while (p) {
-			if (p&1) a = a*b;
-			b = b*b;
-			p >>= 1;
-		}
-		return a;
-	}
+struct matrix{
+vector<vector<long long>>a;
+int m,n;
+void resz(int _m,int _n){
+m=_m;
+n=_n;
+a.resize(m);
+for1(i,0,m-1)a[i].resize(n);
+}
+matrix bs(int n1){
+matrix res;
+res.resz(n1,n1);
+for1(i,0,n1-1){
+res.a[i][i]=1;
+}
+return res;
+}
+matrix operator * (const matrix &r)const{
+matrix res;
+res.resz(m,r.n);
+for1(i,0,m-1){
+for1(j,0,n-1){
+for1(k,0,r.n-1){
+res.a[i][k]=res.a[i][k]+1ll*a[i][j]*r.a[j][k];
+}
+}
+}
+return res;
+}
+void operator = (const matrix &r) {
+m=r.m;
+n=r.n;
+a=r.a;
+}
+matrix pw(long long n1) {
+matrix res=bs(n);
+matrix tmp;
+tmp.a=a;
+tmp.m=m;
+tmp.n=n;
+if (n1==0)return res;
+while (n1>0){
+    if (n1%2==1)res=(res*tmp);
+    n1/=2;
+    tmp=(tmp*tmp);
+}
+return res;
+}
+void print(){
+for1(i,0,m-1){
+    for1(j,0,n-1){
+    cout<<a[i][j]<<" ";
+    }
+    cout<<'\n';
+}
+}
 };
