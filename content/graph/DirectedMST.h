@@ -1,75 +1,85 @@
 /**
- * Author: chilli, Takanori MAEHARA, Benq, Simon Lindholm
- * Date: 2019-05-10
- * License: CC0
- * Source: https://github.com/spaghetti-source/algorithm/blob/master/graph/arborescence.cc
- * and https://github.com/bqi343/USACO/blob/42d177dfb9d6ce350389583cfa71484eb8ae614c/Implementations/content/graphs%20(12)/Advanced/DirectedMST.h for the reconstruction
- * Description: Finds a minimum spanning
- * tree/arborescence of a directed graph, given a root node. If no MST exists, returns -1.
- * Time: O(E \log V)
- * Status: Stress-tested, also tested on NWERC 2018 fastestspeedrun
+ * Matching mc(g), g is vector adj
+ * auto res=mc.max_match(), res is vector matching
  */
-#pragma once
-
-#include "../data-structures/UnionFindRollback.h"
-
-struct Edge { int a, b; ll w; };
-struct Node { /// lazy skew heap node
-	Edge key;
-	Node *l, *r;
-	ll delta;
-	void prop() {
-		key.w += delta;
-		if (l) l->delta += delta;
-		if (r) r->delta += delta;
-		delta = 0;
-	}
-	Edge top() { prop(); return key; }
+struct Matching {
+    int n;
+    vector<vi> g;
+    vi mt;
+    vi is_ev, gr_buf;
+    vector<pii> nx;
+    int st;
+    int group(int x) {
+        if(gr_buf[x] == -1 || is_ev[gr_buf[x]] != st) return gr_buf[x];
+        return gr_buf[x] = group(gr_buf[x]);
+    }
+    void match(int p, int b) {
+        int d = mt[p];
+        mt[p] = b;
+        if(d == -1 || mt[d] != p) return;
+        if(nx[p].second == -1) {
+            mt[d] = nx[p].first;
+            match(nx[p].first, d);
+        } else {
+            match(nx[p].first, nx[p].second);
+            match(nx[p].second, nx[p].first);
+        }
+    }
+    bool arg() {
+        is_ev[st] = st;
+        gr_buf[st] = -1;
+        nx[st] = pii(-1, -1);
+        queue<int> q;
+        q.push(st);
+        while(q.size()) {
+            int a = q.front();
+            q.pop();
+            for(auto b : g[a]) {
+                if(b == st) continue;
+                if(mt[b] == -1) {
+                    mt[b] = a;
+                    match(a, b);
+                    return true;
+                }
+                if(is_ev[b] == st) {
+                    int x = group(a), y = group(b);
+                    if(x == y) continue;
+                    int z = -1;
+                    while(x != -1 || y != -1) {
+                        if(y != -1) swap(x, y);
+                        if(nx[x] == pii(a, b)) {
+                            z = x;
+                            break;
+                        }
+                        nx[x] = pii(a, b);
+                        x = group(nx[mt[x]].first);
+                    }
+                    for(int v : {group(a), group(b)}) {
+                        while(v != z) {
+                            q.push(v);
+                            is_ev[v] = st;
+                            gr_buf[v] = z;
+                            v = group(nx[mt[v]].first);
+                        }
+                    }
+                } else if(is_ev[mt[b]] != st) {
+                    is_ev[mt[b]] = st;
+                    nx[b] = pii(-1, -1);
+                    nx[mt[b]] = pii(a, -1);
+                    gr_buf[mt[b]] = b;
+                    q.push(mt[b]);
+                }
+            }
+        }
+        return false;
+    }
+    Matching(const vector<vi> &_g) : n(int(_g.size())), g(_g), mt(n, -1), is_ev(n, -1), gr_buf(n), nx(n) {
+        for(st = 0; st < n; st++)
+            if(mt[st] == -1) arg();
+    }
+    vector<pii> max_match() {
+        vector<pii> res;
+        for1(i,0,n-1) if(i < mt[i]) res.pb({i, mt[i]});
+        return res;
+    }
 };
-Node *merge(Node *a, Node *b) {
-	if (!a || !b) return a ?: b;
-	a->prop(), b->prop();
-	if (a->key.w > b->key.w) swap(a, b);
-	swap(a->l, (a->r = merge(b, a->r)));
-	return a;
-}
-void pop(Node*& a) { a->prop(); a = merge(a->l, a->r); }
-
-pair<ll, vi> dmst(int n, int r, vector<Edge>& g) {
-	RollbackUF uf(n);
-	vector<Node*> heap(n);
-	for (Edge e : g) heap[e.b] = merge(heap[e.b], new Node{e});
-	ll res = 0;
-	vi seen(n, -1), path(n), par(n);
-	seen[r] = r;
-	vector<Edge> Q(n), in(n, {-1,-1}), comp;
-	deque<tuple<int, int, vector<Edge>>> cycs;
-	rep(s,0,n) {
-		int u = s, qi = 0, w;
-		while (seen[u] < 0) {
-			if (!heap[u]) return {-1,{}};
-			Edge e = heap[u]->top();
-			heap[u]->delta -= e.w, pop(heap[u]);
-			Q[qi] = e, path[qi++] = u, seen[u] = s;
-			res += e.w, u = uf.find(e.a);
-			if (seen[u] == s) { /// found cycle, contract
-				Node* cyc = 0;
-				int end = qi, time = uf.time();
-				do cyc = merge(cyc, heap[w = path[--qi]]);
-				while (uf.join(u, w));
-				u = uf.find(u), heap[u] = cyc, seen[u] = -1;
-				cycs.push_front({u, time, {&Q[qi], &Q[end]}});
-			}
-		}
-		rep(i,0,qi) in[uf.find(Q[i].b)] = Q[i];
-	}
-
-	for (auto& [u,t,comp] : cycs) { // restore sol (optional)
-		uf.rollback(t);
-		Edge inEdge = in[u];
-		for (auto& e : comp) in[uf.find(e.b)] = e;
-		in[uf.find(inEdge.b)] = inEdge;
-	}
-	rep(i,0,n) par[i] = in[i].a;
-	return {res, par};
-}
