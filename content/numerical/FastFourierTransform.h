@@ -18,9 +18,9 @@
  * here (https://github.com/simonlindholm/fft-precision/blob/master/fft-precision.md)
  */
 #pragma once
-
-typedef complex<double> C;
-typedef vector<double> vd;
+#define ld double
+typedef complex<ld> C;
+typedef vector<ld> vd;
 void fft(vector<C>& a) {
 	int n = sz(a), L = 31 - __builtin_clz(n);
 	static vector<complex<long double>> R(2, 1);
@@ -56,3 +56,17 @@ vd conv(const vd& a, const vd& b) {
 	rep(i,0,sz(res)) res[i] = imag(out[i]) / (4 * n);
 	return res;
 }
+/*long long my_round(ld x) {
+    if (x < 0) return -my_round(-x);
+    return (long long) (x + 1e-2);
+}
+vector<long long> multiply(const vector<int>& a, const vector<int>& b) {
+    vector<ld> ad(a.begin(), a.end());
+    vector<ld> bd(b.begin(), b.end());
+    auto rd = conv(ad, bd);
+    vector<long long> res(rd.size());
+    for (int i = 0; i < (int) res.size(); ++i) {
+        res[i] = my_round(rd[i]);
+    }
+    return res;
+}*/
